@@ -15,7 +15,7 @@ To recreate this project with the same configuration:
 
 ```sh
 # recreate this project
-pnpm dlx sv@0.17.0 create --template minimal --types ts --add ai-tools="ide:other" tailwindcss="plugins:typography,forms" --install pnpm caffiene-half-life-logger
+pnpm dlx sv@0.17.0 create --template minimal --types ts --add ai-tools="ide:other" tailwindcss="plugins:typography,forms" --install pnpm caffeine-half-life-logger
 ```
 
 ## Developing

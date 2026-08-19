@@ -11,3 +11,14 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model CaffeineIntake {
+  id            Int      @id @default(autoincrement())
+  label         String?
+  amountMg      Float
+  consumedAt    DateTime
+  halfLifeHours Float    @default(5)
+  createdAt     DateTime @default(now())
+
+  @@index([consumedAt])
+}
