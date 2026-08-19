@@ -166,7 +166,7 @@ label small {
 
 fieldset {
   display: flex;
-  gap: 18px;
+  gap: 8px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -189,6 +189,8 @@ fieldset label {
   background: #faf8f2;
   font-size: 0.83rem;
   cursor: pointer;
+  flex: 1;
+  justify-content: center;
 }
 
 fieldset label:has(input:checked) {
@@ -249,6 +251,37 @@ input:focus {
   background: #eae5dc;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+.finish-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.finish-label > span {
+  margin: 0;
+}
+
+.finish-later-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #625d55;
+  font-size: 0.72rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.finish-later-option input {
+  appearance: checkbox !important;
+  width: 14px;
+  height: 14px;
+  min-height: 14px;
+  margin: 0;
+  accent-color: #8c3d22;
+  opacity: 1;
 }
 
 .log-panel button[type="submit"] {
@@ -361,6 +394,10 @@ input:focus {
   padding: 10px 20px;
 }
 
+.intake-row.editing {
+  padding-bottom: 18px;
+}
+
 .intake-row + .intake-row {
   border-top: 1px solid #ded9d0;
 }
@@ -399,6 +436,53 @@ input:focus {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
+  min-width: 190px;
+}
+
+.edit-button,
+.cancel-button,
+.save-button {
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid #bcb5aa;
+  color: #625d55;
+  background: transparent;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.edit-button:hover,
+.cancel-button:hover {
+  border-color: #25231f;
+  color: #25231f;
+  background: #f3eee7;
+}
+
+.edit-intake-form {
+  display: grid;
+  grid-column: 2 / -1;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  gap: 12px;
+  width: 100%;
+  padding-top: 8px;
+  border-top: 1px solid #ded9d0;
+}
+
+.edit-form-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.save-button {
+  border-color: #25231f;
+  color: #fffdf8;
+  background: #25231f;
+}
+
+.save-button:hover {
+  background: #8c3d22;
 }
 
 .finish-button {
@@ -467,6 +551,15 @@ input:focus {
     grid-template-columns: 10px 1fr auto minmax(36px, auto);
   }
 
+  .intake-actions {
+    min-width: 154px;
+  }
+
+  .edit-intake-form {
+    grid-column: 2 / -1;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
   .intake-dose {
     display: none;
   }
@@ -498,6 +591,34 @@ input:focus {
     gap: 12px;
     padding-right: 15px;
     padding-left: 15px;
+  }
+
+  .intake-actions {
+    min-width: 0;
+  }
+
+  .finish-button,
+  .edit-button {
+    font-size: 0;
+  }
+
+  .finish-button::after {
+    content: "FINISH";
+    font-size: 0.6rem;
+  }
+
+  .edit-button::after {
+    content: "EDIT";
+    font-size: 0.6rem;
+  }
+
+  .edit-button.active::after {
+    content: "CLOSE";
+  }
+
+  .edit-intake-form {
+    grid-column: 2 / -1;
+    grid-template-columns: 1fr;
   }
 
   .intake-remaining {

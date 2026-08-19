@@ -1,5 +1,6 @@
 <script lang="ts">
   import { caffeineRemaining, totalCaffeineRemaining } from "$lib/caffeine";
+  import { onMount } from "svelte";
   import { SvelteDate } from "svelte/reactivity";
   import type { PageProps } from "./$types";
 
@@ -18,6 +19,11 @@
   let now = $derived(new SvelteDate(data.now));
   let consumptionType = $state<"instant" | "ongoing">("instant");
   let finishedAt = $state("");
+  let finishLater = $state(false);
+  let editingId = $state<number | null>(null);
+  let editConsumptionType = $state<"instant" | "ongoing">("instant");
+  let editFinishedAt = $state("");
+  let editFinishLater = $state(false);
 
   type ServerIntake = (typeof data.intakes)[number] & {
     finishedAt: Date | string | null;
@@ -106,10 +112,7 @@
   let stackedAreas = $derived.by(() => {
     const plotWidth = chartWidth - plotLeft - plotRight;
     const plotHeight = chartHeight - plotTop - plotBottom;
-    const runningValues = Array.from(
-      { length: sampleCount },
-      () => 0,
-    ) as number[];
+    const runningValues = Array.from({ length: sampleCount }, () => 0) as number[];
 
     return chartIntakes.map((intake, intakeIndex) => {
       const topPoints = chartSamples.map((sample, sampleIndex) => {
@@ -165,7 +168,7 @@
 
   let defaultConsumedAt = $derived(toLocalInputValue(now));
 
-  $effect(() => {
+  onMount(() => {
     const interval = window.setInterval(() => {
       now.setTime(Date.now());
     }, 60_000);
@@ -189,8 +192,49 @@
   function selectOngoing(): void {
     consumptionType = "ongoing";
 
-    if (!finishedAt) {
+    if (!finishedAt && !finishLater) {
       finishedAt = toLocalInputValue(new Date());
+    }
+  }
+
+  function updateFinishLater(value: boolean): void {
+    finishLater = value;
+
+    if (!finishLater && !finishedAt) {
+      finishedAt = toLocalInputValue(new Date());
+    }
+  }
+
+  function startEditing(intake: (typeof intakes)[number]): void {
+    if (editingId === intake.id) {
+      cancelEditing();
+
+      return;
+    }
+
+    editingId = intake.id;
+    editConsumptionType = intake.isDistributed ? "ongoing" : "instant";
+    editFinishedAt = intake.finishedAt ? toLocalInputValue(intake.finishedAt) : "";
+    editFinishLater = intake.isDistributed && intake.finishedAt === null;
+  }
+
+  function cancelEditing(): void {
+    editingId = null;
+  }
+
+  function selectEditOngoing(): void {
+    editConsumptionType = "ongoing";
+
+    if (!editFinishedAt && !editFinishLater) {
+      editFinishedAt = toLocalInputValue(new Date());
+    }
+  }
+
+  function updateEditFinishLater(value: boolean): void {
+    editFinishLater = value;
+
+    if (!editFinishLater && !editFinishedAt) {
+      editFinishedAt = toLocalInputValue(new Date());
     }
   }
 
@@ -204,10 +248,7 @@
 
   function formatDuration(start: Date, end: Date): string {
     const elapsedMilliseconds = end.getTime() - start.getTime();
-    const durationMinutes = Math.max(
-      0,
-      Math.round(elapsedMilliseconds / 60_000),
-    );
+    const durationMinutes = Math.max(0, Math.round(elapsedMilliseconds / 60_000));
     const hours = Math.floor(durationMinutes / 60);
     const minutes = durationMinutes % 60;
 
@@ -308,9 +349,28 @@
 
         {#if consumptionType === "ongoing"}
           <label>
-            <span>Finished at <small>optional</small></span>
-            <input name="finishedAt" type="datetime-local" bind:value={finishedAt} />
-            <small>Leave blank to start an open drink.</small>
+            <span class="finish-label">
+              <span>Finished at</span>
+              <span class="finish-later-option">
+                <input
+                  name="finishLater"
+                  type="checkbox"
+                  checked={finishLater}
+                  onchange={(event) => {
+                    updateFinishLater(event.currentTarget.checked);
+                  }}
+                />
+                Finish later
+              </span>
+            </span>
+            {#if !finishLater}
+              <input
+                name="finishedAt"
+                type="datetime-local"
+                bind:value={finishedAt}
+                required
+              />
+            {/if}
           </label>
         {/if}
 
@@ -375,7 +435,7 @@
 
     <div class="intake-list">
       {#each intakes as intake (intake.id)}
-        <article class="intake-row">
+        <article class:editing={editingId === intake.id} class="intake-row">
           <span class="color-key" style:background={intake.color}></span>
           <div class="intake-name">
             <strong>{intake.label || "Caffeine"}</strong>
@@ -409,6 +469,17 @@
                 <button class="finish-button" type="submit">FINISH NOW</button>
               </form>
             {/if}
+            <button
+              class:active={editingId === intake.id}
+              class="edit-button"
+              type="button"
+              aria-label={`${editingId === intake.id ? "Close editor for" : "Edit"} ${
+                intake.label || "caffeine intake"
+              }`}
+              onclick={() => startEditing(intake)}
+            >
+              {editingId === intake.id ? "CLOSE" : "EDIT"}
+            </button>
             <form method="POST" action="?/delete">
               <input type="hidden" name="id" value={intake.id} />
               <button
@@ -420,6 +491,100 @@
               </button>
             </form>
           </div>
+
+          {#if editingId === intake.id}
+            <form class="edit-intake-form" method="POST" action="?/edit">
+              <input type="hidden" name="id" value={intake.id} />
+
+              <label>
+                <span>Amount</span>
+                <div class="input-with-unit">
+                  <input
+                    name="amountMg"
+                    type="number"
+                    min="1"
+                    max="1000"
+                    step="1"
+                    value={intake.amountMg}
+                    required
+                  />
+                  <span>mg</span>
+                </div>
+              </label>
+
+              <label>
+                <span>What was it?</span>
+                <input name="label" type="text" maxlength="80" value={intake.label || ""} />
+              </label>
+
+              <fieldset>
+                <legend>Consumption type</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name="consumptionType"
+                    value="instant"
+                    bind:group={editConsumptionType}
+                  />
+                  <span>Chug</span>
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="consumptionType"
+                    value="ongoing"
+                    bind:group={editConsumptionType}
+                    onclick={selectEditOngoing}
+                  />
+                  <span>Sip</span>
+                </label>
+              </fieldset>
+
+              <label>
+                <span>Started at</span>
+                <input
+                  name="consumedAt"
+                  type="datetime-local"
+                  value={toLocalInputValue(intake.consumedAt)}
+                  required
+                />
+              </label>
+
+              {#if editConsumptionType === "ongoing"}
+                <label>
+                  <span class="finish-label">
+                    <span>Finished at</span>
+                    <span class="finish-later-option">
+                      <input
+                        name="finishLater"
+                        type="checkbox"
+                        checked={editFinishLater}
+                        onchange={(event) => {
+                          updateEditFinishLater(event.currentTarget.checked);
+                        }}
+                      />
+                      Finish later
+                    </span>
+                  </span>
+                  {#if !editFinishLater}
+                    <input
+                      name="finishedAt"
+                      type="datetime-local"
+                      bind:value={editFinishedAt}
+                      required
+                    />
+                  {/if}
+                </label>
+              {/if}
+
+              <div class="edit-form-actions">
+                <button class="save-button" type="submit">SAVE</button>
+                <button class="cancel-button" type="button" onclick={cancelEditing}>
+                  CANCEL
+                </button>
+              </div>
+            </form>
+          {/if}
         </article>
       {:else}
         <div class="empty-state">

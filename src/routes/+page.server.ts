@@ -100,6 +100,67 @@ export const actions: Actions = {
       success: true,
     };
   },
+  edit: async ({ request }) => {
+    const formData = await request.formData();
+    const id = Number(formData.get("id"));
+    const amountMg = Number(formData.get("amountMg"));
+    const consumedAtValue = formData.get("consumedAt");
+    const consumptionType = formData.get("consumptionType");
+    const finishedAtValue = formData.get("finishedAt");
+    const finishLater = formData.get("finishLater") === "on";
+    const rawLabel = formData.get("label");
+
+    const label = typeof rawLabel === "string" ? rawLabel.trim() : "";
+    const consumedAt =
+      typeof consumedAtValue === "string" ? new Date(consumedAtValue) : new Date(Number.NaN);
+    const finishedAt =
+      typeof finishedAtValue === "string" && finishedAtValue ? new Date(finishedAtValue) : null;
+
+    const idIsValid = Number.isInteger(id) && id > 0;
+    const amountIsValid = Number.isFinite(amountMg) && amountMg > 0 && amountMg <= 1000;
+    const typeIsValid = consumptionType === "instant" || consumptionType === "ongoing";
+    const dateIsValid = !Number.isNaN(consumedAt.getTime());
+    const finishIsValid =
+      consumptionType === "instant" ||
+      finishLater ||
+      (finishedAt !== null &&
+        !Number.isNaN(finishedAt.getTime()) &&
+        finishedAt.getTime() >= consumedAt.getTime());
+
+    if (!idIsValid || !amountIsValid || !typeIsValid || !dateIsValid || !finishIsValid) {
+      return fail(400, {
+        message: "Enter a valid amount and time range.",
+      });
+    }
+
+    const intake = await prisma.caffeineIntake.findUnique({
+      where: { id },
+    });
+
+    if (!intake) {
+      return fail(404, {
+        message: "That intake could not be found.",
+      });
+    }
+
+    const isDistributed = consumptionType === "ongoing";
+    const updatedFinishedAt = isDistributed ? (finishLater ? null : finishedAt) : consumedAt;
+
+    await prisma.caffeineIntake.update({
+      where: { id },
+      data: {
+        amountMg,
+        consumedAt,
+        isDistributed,
+        finishedAt: updatedFinishedAt,
+        label: label || null,
+      },
+    });
+
+    return {
+      success: true,
+    };
+  },
   delete: async ({ request }) => {
     const formData = await request.formData();
     const id = Number(formData.get("id"));
