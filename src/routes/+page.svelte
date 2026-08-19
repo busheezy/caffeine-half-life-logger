@@ -6,7 +6,7 @@
   let { data, form }: PageProps = $props();
 
   const chartWidth = 920;
-  const chartHeight = 330;
+  const chartHeight = 280;
   const plotLeft = 52;
   const plotRight = 16;
   const plotTop = 20;
@@ -16,13 +16,20 @@
   const colors = ["#ff7a45", "#22a06b", "#6e5bd7", "#e2a72e", "#2878bd", "#cf4d7d"];
 
   let now = $derived(new SvelteDate(data.now));
+  let consumptionType = $state<"instant" | "ongoing">("instant");
+  let finishedAt = $state("");
+
+  type ServerIntake = (typeof data.intakes)[number] & {
+    finishedAt: Date | string | null;
+  };
 
   let intakes = $derived(
-    data.intakes.map((intake, index) => {
+    (data.intakes as ServerIntake[]).map((intake, index) => {
       return {
         ...intake,
         color: colors[index % colors.length],
         consumedAt: new Date(intake.consumedAt),
+        finishedAt: intake.finishedAt ? new Date(intake.finishedAt) : null,
       };
     }),
   );
@@ -34,6 +41,18 @@
   );
 
   let currentAmount = $derived(totalCaffeineRemaining(intakes, now));
+
+  let todayIntakeCount = $derived(
+    intakes.filter((intake) => {
+      return intake.consumedAt.toDateString() === now.toDateString();
+    }).length,
+  );
+
+  let activeIntakeCount = $derived(
+    intakes.filter((intake) => {
+      return caffeineRemaining(intake, now) >= 1;
+    }).length,
+  );
 
   let todayTotal = $derived.by(() => {
     const todayStart = new SvelteDate(now);
@@ -68,7 +87,9 @@
 
       return {
         time,
-        values: chartIntakes.map((intake) => caffeineRemaining(intake, time)),
+        values: chartIntakes.map((intake) => {
+          return caffeineRemaining(intake, time, now);
+        }),
       };
     });
   });
@@ -85,7 +106,10 @@
   let stackedAreas = $derived.by(() => {
     const plotWidth = chartWidth - plotLeft - plotRight;
     const plotHeight = chartHeight - plotTop - plotBottom;
-    const runningValues = new Array(sampleCount).fill(0) as number[];
+    const runningValues = Array.from(
+      { length: sampleCount },
+      () => 0,
+    ) as number[];
 
     return chartIntakes.map((intake, intakeIndex) => {
       const topPoints = chartSamples.map((sample, sampleIndex) => {
@@ -162,12 +186,36 @@
     return `${Math.round(value)} mg`;
   }
 
+  function selectOngoing(): void {
+    consumptionType = "ongoing";
+
+    if (!finishedAt) {
+      finishedAt = toLocalInputValue(new Date());
+    }
+  }
+
   function formatDate(date: Date): string {
     return date.toLocaleString([], {
       weekday: "short",
       hour: "numeric",
       minute: "2-digit",
     });
+  }
+
+  function formatDuration(start: Date, end: Date): string {
+    const elapsedMilliseconds = end.getTime() - start.getTime();
+    const durationMinutes = Math.max(
+      0,
+      Math.round(elapsedMilliseconds / 60_000),
+    );
+    const hours = Math.floor(durationMinutes / 60);
+    const minutes = durationMinutes % 60;
+
+    if (hours === 0) {
+      return `${minutes} min`;
+    }
+
+    return minutes === 0 ? `${hours} hr` : `${hours} hr ${minutes} min`;
   }
 </script>
 
@@ -178,30 +226,30 @@
 
 <main>
   <header class="page-header">
-    <div>
-      <p class="eyebrow">PERSONAL CAFFEINE LOG</p>
-    </div>
+    <p class="eyebrow">PERSONAL CAFFEINE LOG</p>
   </header>
 
   <section class="summary-grid" aria-label="Current caffeine summary">
     <article class="hero-stat">
       <p>ESTIMATED IN YOUR BODY</p>
       <strong>{formatMg(currentAmount)}</strong>
-      <span>as of {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+      <span
+        >as of {now.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        })}</span
+      >
     </article>
 
     <article class="summary-stat">
       <p>TODAY’S INTAKE</p>
       <strong>{formatMg(todayTotal)}</strong>
-      <span
-        >{intakes.filter((intake) => intake.consumedAt.toDateString() === now.toDateString())
-          .length} logged doses</span
-      >
+      <span>{todayIntakeCount} logged doses</span>
     </article>
 
     <article class="summary-stat">
       <p>ACTIVE DOSES</p>
-      <strong>{intakes.filter((intake) => caffeineRemaining(intake, now) >= 1).length}</strong>
+      <strong>{activeIntakeCount}</strong>
       <span>with at least 1 mg remaining</span>
     </article>
   </section>
@@ -230,10 +278,41 @@
           <input name="label" type="text" maxlength="80" placeholder="Morning coffee" />
         </label>
 
+        <fieldset>
+          <legend>Consumption type</legend>
+          <label>
+            <input
+              type="radio"
+              name="consumptionType"
+              value="instant"
+              bind:group={consumptionType}
+            />
+            <span>Chug</span>
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="consumptionType"
+              value="ongoing"
+              bind:group={consumptionType}
+              onclick={selectOngoing}
+            />
+            <span>Sip</span>
+          </label>
+        </fieldset>
+
         <label>
-          <span>Consumed at</span>
+          <span>Started at</span>
           <input name="consumedAt" type="datetime-local" value={defaultConsumedAt} required />
         </label>
+
+        {#if consumptionType === "ongoing"}
+          <label>
+            <span>Finished at <small>optional</small></span>
+            <input name="finishedAt" type="datetime-local" bind:value={finishedAt} />
+            <small>Leave blank to start an open drink.</small>
+          </label>
+        {/if}
 
         {#if form?.message}
           <p class="form-error">{form.message}</p>
@@ -300,7 +379,20 @@
           <span class="color-key" style:background={intake.color}></span>
           <div class="intake-name">
             <strong>{intake.label || "Caffeine"}</strong>
-            <span>{formatDate(intake.consumedAt)}</span>
+            {#if !intake.isDistributed}
+              <span>{formatDate(intake.consumedAt)}</span>
+            {:else if intake.finishedAt === null}
+              <span>{formatDate(intake.consumedAt)}</span>
+              <span>Still drinking</span>
+            {:else}
+              <span
+                >{formatDate(intake.consumedAt)} · {formatDuration(
+                  intake.consumedAt,
+                  intake.finishedAt,
+                )}
+                duration</span
+              >
+            {/if}
           </div>
           <div class="intake-dose">
             <strong>{formatMg(intake.amountMg)}</strong>
@@ -310,16 +402,24 @@
             <strong>{formatMg(caffeineRemaining(intake, now))}</strong>
             <span>remaining</span>
           </div>
-          <form method="POST" action="?/delete">
-            <input type="hidden" name="id" value={intake.id} />
-            <button
-              class="delete-button"
-              type="submit"
-              aria-label={`Delete ${intake.label || "caffeine intake"}`}
-            >
-              ×
-            </button>
-          </form>
+          <div class="intake-actions">
+            {#if intake.isDistributed && intake.finishedAt === null}
+              <form method="POST" action="?/finish">
+                <input type="hidden" name="id" value={intake.id} />
+                <button class="finish-button" type="submit">FINISH NOW</button>
+              </form>
+            {/if}
+            <form method="POST" action="?/delete">
+              <input type="hidden" name="id" value={intake.id} />
+              <button
+                class="delete-button"
+                type="submit"
+                aria-label={`Delete ${intake.label || "caffeine intake"}`}
+              >
+                ×
+              </button>
+            </form>
+          </div>
         </article>
       {:else}
         <div class="empty-state">

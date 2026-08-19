@@ -13,12 +13,14 @@ datasource db {
 }
 
 model CaffeineIntake {
-  id            Int      @id @default(autoincrement())
+  id            Int       @id @default(autoincrement())
   label         String?
   amountMg      Float
   consumedAt    DateTime
-  halfLifeHours Float    @default(5)
-  createdAt     DateTime @default(now())
+  isDistributed Boolean   @default(false)
+  finishedAt    DateTime?
+  halfLifeHours Float     @default(5)
+  createdAt     DateTime  @default(now())
 
   @@index([consumedAt])
 }
