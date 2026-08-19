@@ -74,26 +74,6 @@ h2 {
   font-size: clamp(1.6rem, 2.5vw, 2.25rem);
 }
 
-.status-dot {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex: none;
-  padding-top: 8px;
-  color: #4d4a43;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.13em;
-}
-
-.status-dot span {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: #22a06b;
-  box-shadow: 0 0 0 4px rgba(34, 160, 107, 0.13);
-}
-
 .summary-grid {
   display: grid;
   grid-template-columns: 1.5fr 1fr 1fr;
@@ -422,10 +402,6 @@ input:focus {
 
   .page-header {
     display: block;
-  }
-
-  .status-dot {
-    margin-top: 20px;
   }
 
   .summary-grid {

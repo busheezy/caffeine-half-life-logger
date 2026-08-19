@@ -181,11 +181,6 @@
     <div>
       <p class="eyebrow">PERSONAL CAFFEINE LOG</p>
     </div>
-
-    <div class="status-dot" aria-label="Dashboard is running locally">
-      <span></span>
-      LOCAL
-    </div>
   </header>
 
   <section class="summary-grid" aria-label="Current caffeine summary">
@@ -225,7 +220,7 @@
         <label>
           <span>Amount</span>
           <div class="input-with-unit">
-            <input name="amountMg" type="number" min="1" max="1000" step="1" value="95" required />
+            <input name="amountMg" type="number" min="1" max="1000" step="1" value="100" required />
             <span>mg</span>
           </div>
         </label>
