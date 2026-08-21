@@ -726,7 +726,7 @@
                 <input type="hidden" name="id" value={intake.id} />
                 <button
                   class="min-h-[34px] cursor-pointer border border-[#ff8a5b] bg-transparent px-[9px] text-[0.65rem] font-extrabold tracking-[0.06em] text-[#ff8a5b] hover:bg-[#ff8a5b] hover:text-[#111513] max-[560px]:text-[0.6rem]"
-                  type="submit">FINISH<span class="max-[560px]:hidden"> NOW</span></button
+                  type="submit">FINISH<span class="max-[560px]:hidden">&nbsp;NOW</span></button
                 >
               </form>
             {/if}
